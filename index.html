@@ -18,6 +18,10 @@
             --text-secondary: #64748b;
             --border: #e2e8f0;
             --chart-grid: #e2e8f0;
+            --trend-up-bg: rgba(16, 185, 129, 0.1);
+            --trend-up-text: #10b981;
+            --trend-down-bg: rgba(239, 68, 68, 0.1);
+            --trend-down-text: #ef4444;
         }
 
         /* Dark Mode Variables */
@@ -29,6 +33,10 @@
             --text-secondary: #94a3b8;
             --border: #334155;
             --chart-grid: #334155;
+            --trend-up-bg: rgba(16, 185, 129, 0.2);
+            --trend-up-text: #34d399;
+            --trend-down-bg: rgba(239, 68, 68, 0.2);
+            --trend-down-text: #f87171;
         }
 
         body {
@@ -180,6 +188,10 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             border: 1px solid var(--border);
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .card h3 {
@@ -190,12 +202,30 @@
             letter-spacing: 0.05em;
         }
 
+        .card-value-wrapper {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
         .card p {
             margin: 0;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: 700;
             color: var(--primary-color);
         }
+
+        .trend {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .trend.up { background-color: var(--trend-up-bg); color: var(--trend-up-text); }
+        .trend.down { background-color: var(--trend-down-bg); color: var(--trend-down-text); }
+        .trend.neutral { background-color: var(--border); color: var(--text-secondary); }
 
         .chart-grid {
             display: grid;
@@ -261,7 +291,6 @@
             .kpi-cards { grid-template-columns: repeat(3, 1fr); gap: 16px; }
             .card p { font-size: 1.5rem; }
             .chart-grid { grid-template-columns: 1fr 1fr; }
-            .chart-container.full-width { grid-column: span 2; }
         }
 
         @media (min-width: 1024px) {
@@ -318,47 +347,78 @@
             <div class="kpi-cards">
                 <div class="card">
                     <h3>Active Accounts</h3>
-                    <p id="kpiAccounts">0</p>
+                    <div class="card-value-wrapper">
+                        <p id="kpiAccounts">0</p>
+                        <span id="trendAccounts" class="trend"></span>
+                    </div>
                 </div>
                 <div class="card">
                     <h3>Total Credit Limit</h3>
-                    <p id="kpiLimit">$0</p>
+                    <div class="card-value-wrapper">
+                        <p id="kpiLimit">$0</p>
+                        <span id="trendLimit" class="trend"></span>
+                    </div>
                 </div>
                 <div class="card">
                     <h3>Total Balance</h3>
-                    <p id="kpiBalance">$0</p>
+                    <div class="card-value-wrapper">
+                        <p id="kpiBalance">$0</p>
+                        <span id="trendBalance" class="trend"></span>
+                    </div>
                 </div>
                 <div class="card">
                     <h3>Utilization Rate</h3>
-                    <p id="kpiUtilization">0%</p>
+                    <div class="card-value-wrapper">
+                        <p id="kpiUtilization">0%</p>
+                        <span id="trendUtilization" class="trend"></span>
+                    </div>
                 </div>
                 <div class="card">
                     <h3>Total Spend</h3>
-                    <p id="kpiSpend">$0</p>
+                    <div class="card-value-wrapper">
+                        <p id="kpiSpend">$0</p>
+                        <span id="trendSpend" class="trend"></span>
+                    </div>
                 </div>
                 <div class="card">
                     <h3>Avg Spend / Acct</h3>
-                    <p id="kpiAvgSpend">$0</p>
+                    <div class="card-value-wrapper">
+                        <p id="kpiAvgSpend">$0</p>
+                        <span id="trendAvgSpend" class="trend"></span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Charts -->
+            <!-- Charts Grid (2 columns on desktop) -->
             <div class="chart-grid">
-                <div class="chart-container full-width">
+                <div class="chart-container">
                     <canvas id="balanceChart"></canvas>
                 </div>
+                <div class="chart-container">
+                    <canvas id="avgBalanceChart"></canvas>
+                </div>
+                
                 <div class="chart-container">
                     <canvas id="spendChart"></canvas>
                 </div>
                 <div class="chart-container">
+                    <canvas id="avgSpendChart"></canvas>
+                </div>
+
+                <div class="chart-container">
                     <canvas id="revolveChart"></canvas>
                 </div>
+                <div class="chart-container">
+                    <canvas id="avgRevolveChart"></canvas>
+                </div>
+
                 <div class="chart-container">
                     <canvas id="utilizationChart"></canvas>
                 </div>
                 <div class="chart-container">
                     <canvas id="productBalanceChart"></canvas>
                 </div>
+                
                 <div class="chart-container">
                     <canvas id="delinquencyChart"></canvas>
                 </div>
@@ -416,7 +476,6 @@
             };
         }
 
-        // Attempt to auto-load data from Android local storage path when requested
         document.getElementById('loadDefaultBtn').addEventListener('click', function() {
             if (typeof Papa === 'undefined' || typeof Chart === 'undefined') {
                 alert("Critical Error: The required libraries (Chart.js or PapaParse) did not load.");
@@ -524,6 +583,14 @@
             return (value * 100).toFixed(1) + '%';
         }
 
+        function getTrendHtml(curr, prev) {
+            if (prev === null || prev === undefined || prev === 0) return '<span class="trend neutral">--</span>';
+            const pctChange = ((curr - prev) / prev) * 100;
+            if (pctChange > 0) return `<span class="trend up">▲ ${pctChange.toFixed(1)}%</span>`;
+            if (pctChange < 0) return `<span class="trend down">▼ ${Math.abs(pctChange).toFixed(1)}%</span>`;
+            return `<span class="trend neutral">-</span>`;
+        }
+
         function initializeFilters() {
             const months = new Set();
             const products = new Set();
@@ -580,21 +647,7 @@
 
                 // 2. Group Filtered Data by Month
                 const monthlyData = {};
-                let latestMonth = "";
-                
-                filteredData.forEach(row => {
-                    if (row.reporting_month > latestMonth) {
-                        latestMonth = row.reporting_month;
-                    }
-                });
-                
-                const productsLatest = {};
                 const allProductsSet = new Set();
-                
-                let latestAccounts = new Set();
-                let latestBalance = 0;
-                let latestSpend = 0;
-                let latestLimit = 0;
 
                 filteredData.forEach(row => {
                     const month = row.reporting_month;
@@ -605,7 +658,8 @@
                             revolve: 0,
                             limit: 0,
                             delinquency: {},
-                            productBalance: {}
+                            productBalance: {},
+                            accounts: new Set()
                         };
                     }
                     
@@ -620,49 +674,91 @@
                     monthlyData[month].spend += spnd;
                     monthlyData[month].revolve += (Number(row.revolve_balance) || 0);
                     monthlyData[month].limit += limit;
-                    
                     monthlyData[month].productBalance[prod] = (monthlyData[month].productBalance[prod] || 0) + bal;
                     
                     const dq = row.delinquency_bucket || 'Current';
                     monthlyData[month].delinquency[dq] = (monthlyData[month].delinquency[dq] || 0) + bal;
+                    if (row.account_id) monthlyData[month].accounts.add(row.account_id);
+                });
 
-                    if (month === latestMonth) {
-                        if (row.account_id) latestAccounts.add(row.account_id);
-                        latestBalance += bal;
-                        latestSpend += spnd;
-                        latestLimit += limit;
+                const sortedMonths = Object.keys(monthlyData).sort();
+                if (sortedMonths.length === 0) return; // Prevent errors if no data
+
+                const latestMonth = sortedMonths[sortedMonths.length - 1];
+                const prevMonth = sortedMonths.length > 1 ? sortedMonths[sortedMonths.length - 2] : null;
+
+                // 3. Extract KPI Data
+                const currentAccounts = monthlyData[latestMonth].accounts.size;
+                const currentLimit = monthlyData[latestMonth].limit;
+                const currentBalance = monthlyData[latestMonth].balance;
+                const currentUtil = currentLimit > 0 ? (currentBalance / currentLimit) : 0;
+                const currentSpend = monthlyData[latestMonth].spend;
+                const currentAvgSpend = currentAccounts > 0 ? (currentSpend / currentAccounts) : 0;
+
+                let prevAccounts = 0, prevLimit = 0, prevBalance = 0, prevUtil = 0, prevSpend = 0, prevAvgSpend = 0;
+                if (prevMonth) {
+                    prevAccounts = monthlyData[prevMonth].accounts.size;
+                    prevLimit = monthlyData[prevMonth].limit;
+                    prevBalance = monthlyData[prevMonth].balance;
+                    prevUtil = prevLimit > 0 ? (prevBalance / prevLimit) : 0;
+                    prevSpend = monthlyData[prevMonth].spend;
+                    prevAvgSpend = prevAccounts > 0 ? (prevSpend / prevAccounts) : 0;
+                }
+
+                // Update DOM KPIs & Trend Badges
+                document.getElementById('kpiAccounts').textContent = currentAccounts.toLocaleString();
+                document.getElementById('trendAccounts').innerHTML = getTrendHtml(currentAccounts, prevAccounts);
+
+                document.getElementById('kpiLimit').textContent = formatCurrency(currentLimit);
+                document.getElementById('trendLimit').innerHTML = getTrendHtml(currentLimit, prevLimit);
+
+                document.getElementById('kpiBalance').textContent = formatCurrency(currentBalance);
+                document.getElementById('trendBalance').innerHTML = getTrendHtml(currentBalance, prevBalance);
+
+                document.getElementById('kpiUtilization').textContent = formatPct(currentUtil);
+                document.getElementById('trendUtilization').innerHTML = getTrendHtml(currentUtil, prevUtil);
+
+                document.getElementById('kpiSpend').textContent = formatCurrency(currentSpend);
+                document.getElementById('trendSpend').innerHTML = getTrendHtml(currentSpend, prevSpend);
+
+                document.getElementById('kpiAvgSpend').textContent = formatCurrency(currentAvgSpend);
+                document.getElementById('trendAvgSpend').innerHTML = getTrendHtml(currentAvgSpend, prevAvgSpend);
+
+                // For the Pie Chart (Product Mix Latest Month)
+                const productsLatest = {};
+                filteredData.forEach(row => {
+                    if (row.reporting_month === latestMonth) {
+                        const prod = row.product || 'Unknown';
                         productsLatest[prod] = (productsLatest[prod] || 0) + 1;
                     }
                 });
 
-                // 3. Update KPIs
-                const numAccounts = latestAccounts.size;
-                document.getElementById('kpiAccounts').textContent = numAccounts.toLocaleString();
-                document.getElementById('kpiLimit').textContent = formatCurrency(latestLimit);
-                document.getElementById('kpiBalance').textContent = formatCurrency(latestBalance);
-                
-                const utilRate = latestLimit > 0 ? (latestBalance / latestLimit) : 0;
-                document.getElementById('kpiUtilization').textContent = formatPct(utilRate);
-                
-                document.getElementById('kpiSpend').textContent = formatCurrency(latestSpend);
-                
-                const avgSpend = numAccounts > 0 ? (latestSpend / numAccounts) : 0;
-                document.getElementById('kpiAvgSpend').textContent = formatCurrency(avgSpend);
-
                 // 4. Prepare Chart Data Arrays
-                const sortedMonths = Object.keys(monthlyData).sort();
                 const balances = sortedMonths.map(m => monthlyData[m].balance);
+                const avgBalances = sortedMonths.map(m => monthlyData[m].accounts.size > 0 ? monthlyData[m].balance / monthlyData[m].accounts.size : 0);
+
                 const spends = sortedMonths.map(m => monthlyData[m].spend);
+                const avgSpends = sortedMonths.map(m => monthlyData[m].accounts.size > 0 ? monthlyData[m].spend / monthlyData[m].accounts.size : 0);
+
                 const revolves = sortedMonths.map(m => monthlyData[m].revolve);
+                const avgRevolves = sortedMonths.map(m => monthlyData[m].accounts.size > 0 ? monthlyData[m].revolve / monthlyData[m].accounts.size : 0);
+
                 const utilizations = sortedMonths.map(m => monthlyData[m].limit > 0 ? (monthlyData[m].balance / monthlyData[m].limit) * 100 : 0);
 
                 // 5. Render Charts
                 Chart.defaults.color = getChartColors().text;
                 
-                renderBalanceChart(sortedMonths, balances);
-                renderSpendChart(sortedMonths, spends);
-                renderRevolveChart(sortedMonths, revolves);
-                renderUtilizationChart(sortedMonths, utilizations);
+                renderLineChart('balanceChart', sortedMonths, balances, 'Total Balance', '#2563eb', 'Total Portfolio Balance Over Time');
+                renderLineChart('avgBalanceChart', sortedMonths, avgBalances, 'Avg Balance / Acct', '#3b82f6', 'Average Balance per Account');
+
+                renderBarChart('spendChart', sortedMonths, spends, 'Total Spend', '#10b981', 'Total Spend Over Time');
+                renderBarChart('avgSpendChart', sortedMonths, avgSpends, 'Avg Spend / Acct', '#34d399', 'Average Spend per Account');
+
+                renderBarChart('revolveChart', sortedMonths, revolves, 'Total Revolve', '#f59e0b', 'Total Revolving Balance Over Time');
+                renderBarChart('avgRevolveChart', sortedMonths, avgRevolves, 'Avg Revolve / Acct', '#fbbf24', 'Average Revolve Balance per Account');
+
+                renderLineChart('utilizationChart', sortedMonths, utilizations, 'Utilization %', '#8b5cf6', 'Credit Utilization % Over Time', false);
+                
                 renderProductBalanceChart(sortedMonths, monthlyData, Array.from(allProductsSet));
                 renderDelinquencyChart(sortedMonths, monthlyData);
                 renderProductChart(productsLatest);
@@ -719,68 +815,36 @@
             };
         }
 
-        function renderBalanceChart(labels, data) {
-            destroyChart('balanceChart');
-            const ctx = document.getElementById('balanceChart').getContext('2d');
-            charts['balanceChart'] = new Chart(ctx, {
+        function renderLineChart(chartId, labels, data, datasetLabel, color, title, fill = true) {
+            destroyChart(chartId);
+            const ctx = document.getElementById(chartId).getContext('2d');
+            charts[chartId] = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Total Balance',
+                        label: datasetLabel,
                         data: data,
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                        fill: true,
+                        borderColor: color,
+                        backgroundColor: fill ? color.replace(')', ', 0.1)').replace('rgb', 'rgba') : color,
+                        fill: fill,
                         tension: 0.4
                     }]
                 },
-                options: getCommonOptions('Total Portfolio Balance Over Time')
+                options: getCommonOptions(title)
             });
         }
 
-        function renderSpendChart(labels, spendData) {
-            destroyChart('spendChart');
-            const ctx = document.getElementById('spendChart').getContext('2d');
-            charts['spendChart'] = new Chart(ctx, {
+        function renderBarChart(chartId, labels, data, datasetLabel, color, title) {
+            destroyChart(chartId);
+            const ctx = document.getElementById(chartId).getContext('2d');
+            charts[chartId] = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{ label: 'Total Spend', data: spendData, backgroundColor: '#10b981' }]
+                    datasets: [{ label: datasetLabel, data: data, backgroundColor: color }]
                 },
-                options: getCommonOptions('Total Spend Over Time')
-            });
-        }
-
-        function renderRevolveChart(labels, revolveData) {
-            destroyChart('revolveChart');
-            const ctx = document.getElementById('revolveChart').getContext('2d');
-            charts['revolveChart'] = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{ label: 'Revolve Balance', data: revolveData, backgroundColor: '#f59e0b' }]
-                },
-                options: getCommonOptions('Revolving Balance Over Time')
-            });
-        }
-
-        function renderUtilizationChart(labels, utilData) {
-            destroyChart('utilizationChart');
-            const ctx = document.getElementById('utilizationChart').getContext('2d');
-            charts['utilizationChart'] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Utilization %',
-                        data: utilData,
-                        borderColor: '#8b5cf6',
-                        backgroundColor: '#8b5cf6',
-                        tension: 0.1
-                    }]
-                },
-                options: getCommonOptions('Credit Utilization % Over Time')
+                options: getCommonOptions(title)
             });
         }
 
