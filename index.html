@@ -283,6 +283,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             border: 1px solid var(--border);
             overflow-x: auto;
+            margin-bottom: 24px;
         }
 
         .data-table-container h3 {
@@ -310,10 +311,16 @@
             background-color: var(--background);
         }
 
+        .heatmap-cell {
+            font-weight: 600;
+            text-align: right;
+        }
+
         @media (min-width: 768px) {
             .kpi-cards { grid-template-columns: repeat(3, 1fr); gap: 16px; }
             .card p { font-size: 1.5rem; }
             .chart-grid { grid-template-columns: 1fr 1fr; }
+            .chart-container.full-width { grid-column: span 2; }
         }
 
         @media (min-width: 1024px) {
@@ -329,7 +336,7 @@
 
         <header>
             <h1>Credit Portfolio Monitor</h1>
-            <p>Interactive dashboard for monthly cardmember metrics.</p>
+            <p>Advanced Risk Analytics & Interactive Dashboard</p>
             <div class="file-upload">
                 <button id="loadDefaultBtn" class="custom-file-upload">
                     Load Default Data
@@ -412,7 +419,46 @@
                 </div>
             </div>
 
-            <!-- Charts Grid (2 columns on desktop) -->
+            <!-- Advanced Analytics: Histograms & Cohorts -->
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <canvas id="limitDistChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="spendDistChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-grid">
+                <div class="chart-container full-width">
+                    <canvas id="cohortChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Advanced Analytics: Roll Rate Matrix -->
+            <div class="data-table-container">
+                <h3>Delinquency Roll Rates (Prev Month ➔ Latest Month)</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: -10px; margin-bottom: 12px;">Shows the percentage of accounts moving between delinquency buckets from the previous month to the latest filtered month.</p>
+                <table id="rollRateTable">
+                    <thead>
+                        <tr>
+                            <th>From \\ To</th>
+                            <th style="text-align: right;">Current</th>
+                            <th style="text-align: right;">1-29 DPD</th>
+                            <th style="text-align: right;">30-59 DPD</th>
+                            <th style="text-align: right;">60-89 DPD</th>
+                            <th style="text-align: right;">90+ DPD</th>
+                            <th style="text-align: right;">Charge-off</th>
+                            <th style="text-align: right;">Closed / Paid</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rollRateBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Standard Charts Grid -->
             <div class="chart-grid">
                 <div class="chart-container">
                     <canvas id="balanceChart"></canvas>
@@ -690,21 +736,28 @@
                     return true;
                 });
 
-                // 2. Group Filtered Data by Month
+                // 2. Group Filtered Data
                 const monthlyData = {};
                 const allProductsSet = new Set();
+                
+                // Advanced Analytics structures
+                const limitBuckets = { '<$1k':0, '$1k-$5k':0, '$5k-$10k':0, '$10k+':0 };
+                const spendBuckets = { '$0':0, '<$500':0, '$500-$1k':0, '$1k+':0 };
+                const prevMonthStatus = {}; // account_id -> status
+                const currentMonthStatus = {}; // account_id -> status
+                const cohortAverages = {}; // year -> { month: { sum: 0, count: 0 } }
+
+                let latestMonthStr = "";
+                filteredData.forEach(row => {
+                    if (row.reporting_month > latestMonthStr) latestMonthStr = row.reporting_month;
+                });
 
                 filteredData.forEach(row => {
                     const month = row.reporting_month;
                     if (!monthlyData[month]) {
                         monthlyData[month] = {
-                            balance: 0,
-                            spend: 0,
-                            revolve: 0,
-                            limit: 0,
-                            delinquency: {},
-                            productBalance: {},
-                            accounts: new Set()
+                            balance: 0, spend: 0, revolve: 0, limit: 0,
+                            delinquency: {}, productBalance: {}, accounts: new Set()
                         };
                     }
                     
@@ -724,14 +777,66 @@
                     const dq = row.delinquency_bucket || 'Current';
                     monthlyData[month].delinquency[dq] = (monthlyData[month].delinquency[dq] || 0) + bal;
                     if (row.account_id) monthlyData[month].accounts.add(row.account_id);
+
+                    // --- Cohort Analysis (Origination Year based on tenure) ---
+                    if (row.tenure_months !== undefined) {
+                        const d = new Date(month + "-01"); // e.g. 2023-01-01
+                        d.setMonth(d.getMonth() - row.tenure_months);
+                        const origYear = d.getFullYear().toString();
+                        
+                        if (!cohortAverages[origYear]) cohortAverages[origYear] = {};
+                        if (!cohortAverages[origYear][month]) cohortAverages[origYear][month] = { sum: 0, count: 0 };
+                        
+                        cohortAverages[origYear][month].sum += bal; // Tracking Avg Balance by Cohort
+                        cohortAverages[origYear][month].count++;
+                    }
                 });
 
                 const sortedMonths = Object.keys(monthlyData).sort();
-                if (sortedMonths.length === 0) return; // Prevent errors if no data
+                if (sortedMonths.length === 0) return;
 
                 const latestMonth = sortedMonths[sortedMonths.length - 1];
-                // Use the starting month of the selected observation period for trend calculation
-                const prevMonth = sortedMonths.length > 1 ? sortedMonths[0] : null;
+                const prevMonth = sortedMonths.length > 1 ? sortedMonths[sortedMonths.length - 2] : null; // For Roll Rate (always compares adjacent)
+                const startOfObsMonth = sortedMonths.length > 1 ? sortedMonths[0] : null; // For KPI Trends
+
+                // Populate structures for latest month histograms and roll rates
+                filteredData.forEach(row => {
+                    if (prevMonth && row.reporting_month === prevMonth) {
+                        prevMonthStatus[row.account_id] = row.delinquency_bucket || 'Current';
+                    }
+                    if (row.reporting_month === latestMonth) {
+                        currentMonthStatus[row.account_id] = row.delinquency_bucket || 'Current';
+                        
+                        // Histograms
+                        const limit = Number(row.credit_limit) || 0;
+                        if (limit < 1000) limitBuckets['<$1k']++;
+                        else if (limit < 5000) limitBuckets['$1k-$5k']++;
+                        else if (limit < 10000) limitBuckets['$5k-$10k']++;
+                        else limitBuckets['$10k+']++;
+
+                        const spend = Number(row.spend) || 0;
+                        if (spend === 0) spendBuckets['$0']++;
+                        else if (spend < 500) spendBuckets['<$500']++;
+                        else if (spend < 1000) spendBuckets['$500-$1k']++;
+                        else spendBuckets['$1k+']++;
+                    }
+                });
+
+                // Calculate Roll Rates Matrix
+                const statuses = ['Current', '1-29 DPD', '30-59 DPD', '60-89 DPD', '90+ DPD', 'Charge-off'];
+                const rollMatrix = {};
+                statuses.forEach(s => rollMatrix[s] = { total: 0, to: {} });
+
+                if (prevMonth) {
+                    Object.keys(prevMonthStatus).forEach(acc => {
+                        const fromStat = prevMonthStatus[acc];
+                        const toStat = currentMonthStatus[acc] || 'Closed / Paid';
+                        if (rollMatrix[fromStat]) {
+                            rollMatrix[fromStat].total++;
+                            rollMatrix[fromStat].to[toStat] = (rollMatrix[fromStat].to[toStat] || 0) + 1;
+                        }
+                    });
+                }
 
                 // 3. Extract KPI Data
                 const currentAccounts = monthlyData[latestMonth].accounts.size;
@@ -741,43 +846,34 @@
                 const currentSpend = monthlyData[latestMonth].spend;
                 const currentAvgSpend = currentAccounts > 0 ? (currentSpend / currentAccounts) : 0;
 
-                let prevAccounts = 0, prevLimit = 0, prevBalance = 0, prevUtil = 0, prevSpend = 0, prevAvgSpend = 0;
-                if (prevMonth) {
-                    prevAccounts = monthlyData[prevMonth].accounts.size;
-                    prevLimit = monthlyData[prevMonth].limit;
-                    prevBalance = monthlyData[prevMonth].balance;
-                    prevUtil = prevLimit > 0 ? (prevBalance / prevLimit) : 0;
-                    prevSpend = monthlyData[prevMonth].spend;
-                    prevAvgSpend = prevAccounts > 0 ? (prevSpend / prevAccounts) : 0;
+                let obsStartAccounts = 0, obsStartLimit = 0, obsStartBalance = 0, obsStartUtil = 0, obsStartSpend = 0, obsStartAvgSpend = 0;
+                if (startOfObsMonth) {
+                    obsStartAccounts = monthlyData[startOfObsMonth].accounts.size;
+                    obsStartLimit = monthlyData[startOfObsMonth].limit;
+                    obsStartBalance = monthlyData[startOfObsMonth].balance;
+                    obsStartUtil = obsStartLimit > 0 ? (obsStartBalance / obsStartLimit) : 0;
+                    obsStartSpend = monthlyData[startOfObsMonth].spend;
+                    obsStartAvgSpend = obsStartAccounts > 0 ? (obsStartSpend / obsStartAccounts) : 0;
                 }
 
                 // Update DOM KPIs & Trend Badges
                 document.getElementById('kpiAccounts').textContent = currentAccounts.toLocaleString();
-                document.getElementById('trendAccounts').innerHTML = getTrendHtml(currentAccounts, prevAccounts);
+                document.getElementById('trendAccounts').innerHTML = getTrendHtml(currentAccounts, obsStartAccounts);
 
                 document.getElementById('kpiLimit').textContent = formatCurrency(currentLimit);
-                document.getElementById('trendLimit').innerHTML = getTrendHtml(currentLimit, prevLimit);
+                document.getElementById('trendLimit').innerHTML = getTrendHtml(currentLimit, obsStartLimit);
 
                 document.getElementById('kpiBalance').textContent = formatCurrency(currentBalance);
-                document.getElementById('trendBalance').innerHTML = getTrendHtml(currentBalance, prevBalance);
+                document.getElementById('trendBalance').innerHTML = getTrendHtml(currentBalance, obsStartBalance);
 
                 document.getElementById('kpiUtilization').textContent = formatPct(currentUtil);
-                document.getElementById('trendUtilization').innerHTML = getTrendHtml(currentUtil, prevUtil);
+                document.getElementById('trendUtilization').innerHTML = getTrendHtml(currentUtil, obsStartUtil);
 
                 document.getElementById('kpiSpend').textContent = formatCurrency(currentSpend);
-                document.getElementById('trendSpend').innerHTML = getTrendHtml(currentSpend, prevSpend);
+                document.getElementById('trendSpend').innerHTML = getTrendHtml(currentSpend, obsStartSpend);
 
                 document.getElementById('kpiAvgSpend').textContent = formatCurrency(currentAvgSpend);
-                document.getElementById('trendAvgSpend').innerHTML = getTrendHtml(currentAvgSpend, prevAvgSpend);
-
-                // For the Pie Chart (Product Mix Latest Month)
-                const productsLatest = {};
-                filteredData.forEach(row => {
-                    if (row.reporting_month === latestMonth) {
-                        const prod = row.product || 'Unknown';
-                        productsLatest[prod] = (productsLatest[prod] || 0) + 1;
-                    }
-                });
+                document.getElementById('trendAvgSpend').innerHTML = getTrendHtml(currentAvgSpend, obsStartAvgSpend);
 
                 // 4. Prepare Chart Data Arrays
                 const balances = sortedMonths.map(m => monthlyData[m].balance);
@@ -791,9 +887,24 @@
 
                 const utilizations = sortedMonths.map(m => monthlyData[m].limit > 0 ? (monthlyData[m].balance / monthlyData[m].limit) * 100 : 0);
 
+                // Pie Chart (Product Mix Latest Month)
+                const productsLatest = {};
+                filteredData.forEach(row => {
+                    if (row.reporting_month === latestMonth) {
+                        const prod = row.product || 'Unknown';
+                        productsLatest[prod] = (productsLatest[prod] || 0) + 1;
+                    }
+                });
+
                 // 5. Render Charts
                 Chart.defaults.color = getChartColors().text;
                 
+                // Advanced Charts
+                renderBarChart('limitDistChart', Object.keys(limitBuckets), Object.values(limitBuckets), 'Accounts', '#3b82f6', `Credit Limit Distribution (${latestMonth})`);
+                renderBarChart('spendDistChart', Object.keys(spendBuckets), Object.values(spendBuckets), 'Accounts', '#10b981', `Spend Distribution (${latestMonth})`);
+                renderCohortChart('cohortChart', sortedMonths, cohortAverages);
+
+                // Standard Charts
                 renderLineChart('balanceChart', sortedMonths, balances, 'Total Balance', '#2563eb', 'Total Portfolio Balance Over Time');
                 renderLineChart('avgBalanceChart', sortedMonths, avgBalances, 'Avg Balance / Acct', '#3b82f6', 'Average Balance per Account');
 
@@ -809,7 +920,8 @@
                 renderDelinquencyChart(sortedMonths, monthlyData);
                 renderProductChart(productsLatest);
                 
-                // 6. Populate Table
+                // 6. Populate Tables
+                updateRollRateTable(rollMatrix, statuses);
                 updateDataTable(filteredData);
 
             } catch (err) {
@@ -817,6 +929,41 @@
             }
         }
         
+        function updateRollRateTable(rollMatrix, statuses) {
+            const tbody = document.getElementById('rollRateBody');
+            tbody.innerHTML = '';
+            
+            const toStatuses = [...statuses, 'Closed / Paid'];
+
+            statuses.forEach(fromStat => {
+                const tr = document.createElement('tr');
+                let rowHtml = `<td><strong>${fromStat}</strong></td>`;
+                
+                const total = rollMatrix[fromStat].total;
+                
+                toStatuses.forEach(toStat => {
+                    if (total === 0) {
+                        rowHtml += `<td class="heatmap-cell" style="color: var(--text-secondary)">-</td>`;
+                    } else {
+                        const count = rollMatrix[fromStat].to[toStat] || 0;
+                        const pct = (count / total) * 100;
+                        
+                        // Simple heatmap coloring (red for rolling worse, green for improving/paying, grey for same)
+                        let color = "var(--text-primary)";
+                        if (pct > 0) {
+                            if (toStat === 'Closed / Paid' || statuses.indexOf(toStat) < statuses.indexOf(fromStat)) color = "#10b981"; // improved
+                            else if (statuses.indexOf(toStat) > statuses.indexOf(fromStat)) color = "#ef4444"; // worsened
+                        }
+                        
+                        rowHtml += `<td class="heatmap-cell" style="color: ${color}">${pct.toFixed(1)}%</td>`;
+                    }
+                });
+                
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
+            });
+        }
+
         function updateDataTable(filteredData) {
             const tbody = document.getElementById('dataTableBody');
             tbody.innerHTML = '';
@@ -891,6 +1038,39 @@
                     datasets: [{ label: datasetLabel, data: data, backgroundColor: color }]
                 },
                 options: getCommonOptions(title)
+            });
+        }
+        
+        function renderCohortChart(chartId, labels, cohortAverages) {
+            destroyChart(chartId);
+            const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+            let colorIdx = 0;
+            
+            const datasets = Object.keys(cohortAverages).sort().map(year => {
+                const data = labels.map(m => {
+                    const monthData = cohortAverages[year][m];
+                    return monthData && monthData.count > 0 ? monthData.sum / monthData.count : null;
+                });
+                
+                const color = colors[colorIdx % colors.length];
+                colorIdx++;
+                
+                return {
+                    label: `Origination Year: ${year}`,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color,
+                    fill: false,
+                    tension: 0.2,
+                    spanGaps: true
+                };
+            });
+
+            const ctx = document.getElementById(chartId).getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: getCommonOptions('Vintage Analysis: Average Balance by Origination Cohort')
             });
         }
 
