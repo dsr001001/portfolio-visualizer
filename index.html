@@ -92,6 +92,42 @@
             margin: 20px 0;
         }
 
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: var(--surface);
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .filter-group select {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--background);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
         .kpi-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -172,6 +208,25 @@
         <div id="loading" class="hidden">Processing data... Please wait.</div>
 
         <main id="dashboard" class="hidden">
+            <!-- Slicers / Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="startMonth">Start Month</label>
+                    <select id="startMonth"></select>
+                </div>
+                <div class="filter-group">
+                    <label for="endMonth">End Month</label>
+                    <select id="endMonth"></select>
+                </div>
+                <div class="filter-group">
+                    <label for="productFilter">Product</label>
+                    <select id="productFilter">
+                        <option value="All">All Products</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- KPIs -->
             <div class="kpi-cards">
                 <div class="card">
                     <h3>Total Accounts</h3>
@@ -187,6 +242,7 @@
                 </div>
             </div>
 
+            <!-- Charts -->
             <div class="chart-grid">
                 <div class="chart-container">
                     <canvas id="balanceChart"></canvas>
@@ -206,14 +262,14 @@
     
     <script>
         let charts = {};
+        let rawData = []; // Store the full dataset globally to allow dynamic filtering
 
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Basic check to see if CDN scripts loaded
             if (typeof Papa === 'undefined' || typeof Chart === 'undefined') {
-                alert("Critical Error: The required libraries (Chart.js or PapaParse) did not load. Please check your internet connection or ensure your browser isn't blocking them.");
+                alert("Critical Error: The required libraries (Chart.js or PapaParse) did not load. Please check your internet connection.");
                 return;
             }
 
@@ -226,8 +282,18 @@
                 dynamicTyping: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    const data = results.data;
-                    processData(data);
+                    try {
+                        rawData = results.data;
+                        initializeFilters();
+                        updateDashboard();
+                        
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('dashboard').classList.remove('hidden');
+                    } catch (err) {
+                        console.error("Initialization error:", err);
+                        alert("An error occurred during initialization: " + err.message);
+                        document.getElementById('loading').classList.add('hidden');
+                    }
                 },
                 error: function(error) {
                     console.error("Error parsing CSV:", error);
@@ -243,31 +309,83 @@
             return '$' + value.toFixed(2);
         }
 
-        function processData(data) {
+        function initializeFilters() {
+            const months = new Set();
+            const products = new Set();
+
+            rawData.forEach(row => {
+                if (row.reporting_month && typeof row.reporting_month === 'string') {
+                    months.add(row.reporting_month);
+                }
+                if (row.product) {
+                    products.add(row.product);
+                }
+            });
+
+            const sortedMonths = Array.from(months).sort();
+            const startSelect = document.getElementById('startMonth');
+            const endSelect = document.getElementById('endMonth');
+            const prodSelect = document.getElementById('productFilter');
+
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+            sortedMonths.forEach(m => {
+                startSelect.add(new Option(m, m));
+                endSelect.add(new Option(m, m));
+            });
+
+            // Set default selections
+            if (sortedMonths.length > 0) {
+                startSelect.value = sortedMonths[0];
+                endSelect.value = sortedMonths[sortedMonths.length - 1];
+            }
+
+            prodSelect.innerHTML = '<option value="All">All Products</option>';
+            Array.from(products).sort().forEach(p => {
+                prodSelect.add(new Option(p, p));
+            });
+
+            // Add event listeners for interactivity
+            startSelect.addEventListener('change', updateDashboard);
+            endSelect.addEventListener('change', updateDashboard);
+            prodSelect.addEventListener('change', updateDashboard);
+        }
+
+        function updateDashboard() {
             try {
-                // 1. Group Data by Month
+                const startMonth = document.getElementById('startMonth').value;
+                const endMonth = document.getElementById('endMonth').value;
+                const selectedProduct = document.getElementById('productFilter').value;
+
+                // 1. Filter Data based on selections
+                const filteredData = rawData.filter(row => {
+                    if (!row || !row.reporting_month) return false;
+                    
+                    // Enforce start and end month dates
+                    if (row.reporting_month < startMonth || row.reporting_month > endMonth) return false;
+                    
+                    // Enforce product
+                    if (selectedProduct !== 'All' && row.product !== selectedProduct) return false;
+                    
+                    return true;
+                });
+
+                // 2. Group Filtered Data by Month
                 const monthlyData = {};
                 let latestMonth = "";
                 
-                // Find the latest month safely
-                data.forEach(row => {
-                    if (row.reporting_month && typeof row.reporting_month === 'string') {
-                        if (row.reporting_month > latestMonth) {
-                            latestMonth = row.reporting_month;
-                        }
+                filteredData.forEach(row => {
+                    if (row.reporting_month > latestMonth) {
+                        latestMonth = row.reporting_month;
                     }
                 });
                 
-                // For specific views
                 const productsLatest = {};
                 let latestAccounts = new Set();
                 let latestBalance = 0;
                 let latestSpend = 0;
 
-                data.forEach(row => {
-                    // Skip invalid or empty rows
-                    if (!row || !row.reporting_month) return;
-
+                filteredData.forEach(row => {
                     const month = row.reporting_month;
                     if (!monthlyData[month]) {
                         monthlyData[month] = {
@@ -285,7 +403,7 @@
                     const dq = row.delinquency_bucket || 'Current';
                     monthlyData[month].delinquency[dq] = (monthlyData[month].delinquency[dq] || 0) + (Number(row.balance) || 0);
 
-                    // Capture latest month data for KPIs and Pie Chart
+                    // Capture latest month data for KPIs and Pie Chart (within the filtered dataset)
                     if (month === latestMonth) {
                         if (row.account_id) latestAccounts.add(row.account_id);
                         latestBalance += (Number(row.balance) || 0);
@@ -296,35 +414,26 @@
                     }
                 });
 
-                // 2. Update KPIs
+                // 3. Update KPIs
                 document.getElementById('kpiAccounts').textContent = latestAccounts.size.toLocaleString();
                 document.getElementById('kpiBalance').textContent = formatCurrency(latestBalance);
                 document.getElementById('kpiSpend').textContent = formatCurrency(latestSpend);
 
-                // 3. Prepare Chart Data Arrays (Sorted by Month)
+                // 4. Prepare Chart Data Arrays
                 const sortedMonths = Object.keys(monthlyData).sort();
-                if (sortedMonths.length === 0) {
-                    throw new Error("No valid monthly data found in the CSV.");
-                }
                 
                 const balances = sortedMonths.map(m => monthlyData[m].balance);
                 const spends = sortedMonths.map(m => monthlyData[m].spend);
                 const revolves = sortedMonths.map(m => monthlyData[m].revolve);
 
-                // 4. Render Charts
+                // 5. Render Charts (will render empty if no data matches filters)
                 renderBalanceChart(sortedMonths, balances);
                 renderSpendRevolveChart(sortedMonths, spends, revolves);
                 renderDelinquencyChart(sortedMonths, monthlyData);
                 renderProductChart(productsLatest);
 
-                // Show Dashboard
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('dashboard').classList.remove('hidden');
-
             } catch (err) {
-                console.error("Data processing error:", err);
-                alert("An error occurred while processing the data: " + err.message);
-                document.getElementById('loading').classList.add('hidden');
+                console.error("Dashboard update error:", err);
             }
         }
 
@@ -435,7 +544,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Product Mix (Latest Month)' } }
+                    plugins: { title: { display: true, text: 'Product Mix (Latest Filtered Month)' } }
                 }
             });
         }
