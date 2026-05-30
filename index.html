@@ -17,6 +17,18 @@
             --text-primary: #0f172a;
             --text-secondary: #64748b;
             --border: #e2e8f0;
+            --chart-grid: #e2e8f0;
+        }
+
+        /* Dark Mode Variables */
+        body.dark-mode {
+            --primary-color: #3b82f6;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --chart-grid: #334155;
         }
 
         body {
@@ -25,12 +37,31 @@
             background-color: var(--background);
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         .container {
             padding: 16px;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .theme-btn {
+            background: var(--surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         header {
@@ -40,20 +71,22 @@
 
         h1 {
             margin: 0 0 8px 0;
-            font-size: 1.5rem;
+            font-size: 1.75rem;
         }
 
         header p {
             margin: 0 0 16px 0;
             color: var(--text-secondary);
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
 
         .file-upload {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         input[type="file"] {
@@ -70,15 +103,19 @@
             font-weight: 600;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             transition: background-color 0.2s;
+            border: none;
+            font-family: inherit;
+            font-size: 1rem;
         }
 
         .custom-file-upload:active {
-            background-color: #1d4ed8;
+            opacity: 0.8;
         }
 
-        #fileName {
+        .file-name {
             font-size: 0.85rem;
             color: var(--text-secondary);
+            margin-top: 4px;
         }
 
         .hidden {
@@ -90,6 +127,7 @@
             font-weight: bold;
             color: var(--primary-color);
             margin: 20px 0;
+            font-size: 1.2rem;
         }
 
         .filters {
@@ -109,7 +147,7 @@
             flex-direction: column;
             gap: 8px;
             flex: 1;
-            min-width: 120px;
+            min-width: 140px;
         }
 
         .filter-group label {
@@ -119,18 +157,18 @@
         }
 
         .filter-group select {
-            padding: 8px;
+            padding: 10px;
             border-radius: 6px;
             border: 1px solid var(--border);
             background-color: var(--background);
             color: var(--text-primary);
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             width: 100%;
         }
 
         .kpi-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             margin-bottom: 24px;
         }
@@ -146,14 +184,15 @@
 
         .card h3 {
             margin: 0 0 8px 0;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .card p {
             margin: 0;
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--primary-color);
         }
@@ -162,6 +201,7 @@
             display: grid;
             grid-template-columns: 1fr;
             gap: 16px;
+            margin-bottom: 24px;
         }
 
         .chart-container {
@@ -171,7 +211,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             border: 1px solid var(--border);
             position: relative;
-            height: 300px;
+            height: 320px;
             width: 100%;
             box-sizing: border-box;
             overflow: hidden;
@@ -183,43 +223,77 @@
             height: 100% !important;
         }
 
+        .data-table-container {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .data-table-container h3 {
+            margin-top: 0;
+            color: var(--text-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            min-width: 600px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            background-color: var(--background);
+        }
+
         @media (min-width: 768px) {
-            .chart-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .kpi-cards {
-                gap: 24px;
-            }
-            .card p {
-                font-size: 1.5rem;
-            }
-            .chart-container {
-                height: 350px;
-            }
+            .kpi-cards { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+            .card p { font-size: 1.5rem; }
+            .chart-grid { grid-template-columns: 1fr 1fr; }
+            .chart-container.full-width { grid-column: span 2; }
+        }
+
+        @media (min-width: 1024px) {
+            .kpi-cards { grid-template-columns: repeat(6, 1fr); }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="top-bar">
+            <button id="themeToggle" class="theme-btn">🌙 Dark Mode</button>
+        </div>
+
         <header>
             <h1>Credit Portfolio Monitor</h1>
-            <p>Select your synthetic dataset CSV file to view metrics.</p>
-            <div class="file-upload" style="flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 16px;">
-                <button id="loadDefaultBtn" class="custom-file-upload" style="border: none; font-family: inherit; font-size: 1rem;">
+            <p>Interactive dashboard for monthly cardmember metrics.</p>
+            <div class="file-upload">
+                <button id="loadDefaultBtn" class="custom-file-upload">
                     Load Default Data
                 </button>
-                <span style="align-self: center; font-weight: bold; color: var(--text-secondary);">OR</span>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <label for="csvFileInput" class="custom-file-upload">
-                        Upload custom CSV
+                <span style="font-weight: bold; color: var(--text-secondary);">OR</span>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <label for="csvFileInput" class="custom-file-upload" style="background-color: #64748b;">
+                        Upload Custom CSV
                     </label>
                     <input type="file" id="csvFileInput" accept=".csv" />
-                    <span id="fileName">No file chosen</span>
+                    <span id="fileName" class="file-name">No file chosen</span>
                 </div>
             </div>
         </header>
 
-        <div id="loading" class="hidden">Processing data... Please wait.</div>
+        <div id="loading" class="hidden">Parsing Data... Please wait.</div>
 
         <main id="dashboard" class="hidden">
             <!-- Slicers / Filters -->
@@ -233,7 +307,7 @@
                     <select id="endMonth"></select>
                 </div>
                 <div class="filter-group">
-                    <label for="productFilter">Product</label>
+                    <label for="productFilter">Product Line</label>
                     <select id="productFilter">
                         <option value="All">All Products</option>
                     </select>
@@ -243,22 +317,34 @@
             <!-- KPIs -->
             <div class="kpi-cards">
                 <div class="card">
-                    <h3>Total Accounts</h3>
+                    <h3>Active Accounts</h3>
                     <p id="kpiAccounts">0</p>
                 </div>
                 <div class="card">
-                    <h3>Total Balance (Latest)</h3>
+                    <h3>Total Credit Limit</h3>
+                    <p id="kpiLimit">$0</p>
+                </div>
+                <div class="card">
+                    <h3>Total Balance</h3>
                     <p id="kpiBalance">$0</p>
                 </div>
                 <div class="card">
-                    <h3>Total Spend (Latest)</h3>
+                    <h3>Utilization Rate</h3>
+                    <p id="kpiUtilization">0%</p>
+                </div>
+                <div class="card">
+                    <h3>Total Spend</h3>
                     <p id="kpiSpend">$0</p>
+                </div>
+                <div class="card">
+                    <h3>Avg Spend / Acct</h3>
+                    <p id="kpiAvgSpend">$0</p>
                 </div>
             </div>
 
             <!-- Charts -->
             <div class="chart-grid">
-                <div class="chart-container">
+                <div class="chart-container full-width">
                     <canvas id="balanceChart"></canvas>
                 </div>
                 <div class="chart-container">
@@ -268,18 +354,67 @@
                     <canvas id="revolveChart"></canvas>
                 </div>
                 <div class="chart-container">
+                    <canvas id="utilizationChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="productBalanceChart"></canvas>
+                </div>
+                <div class="chart-container">
                     <canvas id="delinquencyChart"></canvas>
                 </div>
                 <div class="chart-container">
                     <canvas id="productChart"></canvas>
                 </div>
             </div>
+
+            <!-- Data Table -->
+            <div class="data-table-container">
+                <h3>Data Preview (Latest 50 Records)</h3>
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Account ID</th>
+                            <th>Product</th>
+                            <th>Credit Limit</th>
+                            <th>Balance</th>
+                            <th>Spend</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody">
+                        <!-- Rows populated via JS -->
+                    </tbody>
+                </table>
+            </div>
         </main>
     </div>
     
     <script>
         let charts = {};
-        let rawData = []; // Store the full dataset globally to allow dynamic filtering
+        let rawData = []; 
+        let isDarkMode = false;
+
+        // Theme Toggle Logic
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            this.textContent = isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+            
+            // Re-render charts to update grid/text colors
+            if (!document.getElementById('dashboard').classList.contains('hidden')) {
+                updateDashboard();
+            }
+        });
+
+        // Get CSS Variables for Chart.js themeing
+        function getChartColors() {
+            const style = getComputedStyle(document.body);
+            return {
+                text: style.getPropertyValue('--text-primary').trim(),
+                grid: style.getPropertyValue('--chart-grid').trim()
+            };
+        }
 
         // Attempt to auto-load data from Android local storage path when requested
         document.getElementById('loadDefaultBtn').addEventListener('click', function() {
@@ -302,8 +437,8 @@
             
             function tryLoadNextPath() {
                 if (pathIndex >= localPathsToTry.length) {
-                    console.log("Load failed (likely due to CORS or file not found).");
-                    alert("Could not automatically load the file from the default location. Please use the 'Upload custom CSV' button.");
+                    console.log("Load failed.");
+                    alert("Could not automatically load the file from the default location. Please use the 'Upload Custom CSV' button.");
                     document.getElementById('loading').classList.add('hidden');
                     return;
                 }
@@ -316,9 +451,7 @@
                     dynamicTyping: true,
                     skipEmptyLines: true,
                     complete: function(results) {
-                        // Check if we actually got valid data or just a 404 HTML response
                         if (results.data && results.data.length > 0 && results.data[0].reporting_month) {
-                            console.log("Load successful from:", path);
                             document.getElementById('fileName').textContent = "Loaded default data";
                             try {
                                 rawData = results.data;
@@ -327,7 +460,6 @@
                                 document.getElementById('loading').classList.add('hidden');
                                 document.getElementById('dashboard').classList.remove('hidden');
                             } catch (err) {
-                                console.error("Initialization error:", err);
                                 alert("Error initializing dashboard: " + err.message);
                                 document.getElementById('loading').classList.add('hidden');
                             }
@@ -336,13 +468,12 @@
                             tryLoadNextPath();
                         }
                     },
-                    error: function(error) {
+                    error: function() {
                         pathIndex++;
                         tryLoadNextPath();
                     }
                 });
             }
-            
             tryLoadNextPath();
         });
 
@@ -351,7 +482,7 @@
             if (!file) return;
 
             if (typeof Papa === 'undefined' || typeof Chart === 'undefined') {
-                alert("Critical Error: The required libraries (Chart.js or PapaParse) did not load. Please check your internet connection.");
+                alert("Critical Error: The required libraries did not load.");
                 return;
             }
 
@@ -372,13 +503,11 @@
                         document.getElementById('loading').classList.add('hidden');
                         document.getElementById('dashboard').classList.remove('hidden');
                     } catch (err) {
-                        console.error("Initialization error:", err);
                         alert("An error occurred during initialization: " + err.message);
                         document.getElementById('loading').classList.add('hidden');
                     }
                 },
                 error: function(error) {
-                    console.error("Error parsing CSV:", error);
                     alert("Error parsing CSV file: " + error.message);
                     document.getElementById('loading').classList.add('hidden');
                 }
@@ -389,6 +518,10 @@
             if (value >= 1000000) return '$' + (value / 1000000).toFixed(2) + 'M';
             if (value >= 1000) return '$' + (value / 1000).toFixed(2) + 'K';
             return '$' + value.toFixed(2);
+        }
+
+        function formatPct(value) {
+            return (value * 100).toFixed(1) + '%';
         }
 
         function initializeFilters() {
@@ -416,7 +549,6 @@
                 endSelect.add(new Option(m, m));
             });
 
-            // Set default selections
             if (sortedMonths.length > 0) {
                 startSelect.value = sortedMonths[0];
                 endSelect.value = sortedMonths[sortedMonths.length - 1];
@@ -427,7 +559,6 @@
                 prodSelect.add(new Option(p, p));
             });
 
-            // Add event listeners for interactivity
             startSelect.addEventListener('change', updateDashboard);
             endSelect.addEventListener('change', updateDashboard);
             prodSelect.addEventListener('change', updateDashboard);
@@ -439,16 +570,11 @@
                 const endMonth = document.getElementById('endMonth').value;
                 const selectedProduct = document.getElementById('productFilter').value;
 
-                // 1. Filter Data based on selections
+                // 1. Filter Data
                 const filteredData = rawData.filter(row => {
                     if (!row || !row.reporting_month) return false;
-                    
-                    // Enforce start and end month dates
                     if (row.reporting_month < startMonth || row.reporting_month > endMonth) return false;
-                    
-                    // Enforce product
                     if (selectedProduct !== 'All' && row.product !== selectedProduct) return false;
-                    
                     return true;
                 });
 
@@ -463,9 +589,12 @@
                 });
                 
                 const productsLatest = {};
+                const allProductsSet = new Set();
+                
                 let latestAccounts = new Set();
                 let latestBalance = 0;
                 let latestSpend = 0;
+                let latestLimit = 0;
 
                 filteredData.forEach(row => {
                     const month = row.reporting_month;
@@ -474,56 +603,120 @@
                             balance: 0,
                             spend: 0,
                             revolve: 0,
-                            delinquency: {}
+                            limit: 0,
+                            delinquency: {},
+                            productBalance: {}
                         };
                     }
                     
-                    monthlyData[month].balance += (Number(row.balance) || 0);
-                    monthlyData[month].spend += (Number(row.spend) || 0);
+                    const bal = Number(row.balance) || 0;
+                    const spnd = Number(row.spend) || 0;
+                    const limit = Number(row.credit_limit) || 0;
+                    const prod = row.product || 'Unknown';
+                    
+                    allProductsSet.add(prod);
+
+                    monthlyData[month].balance += bal;
+                    monthlyData[month].spend += spnd;
                     monthlyData[month].revolve += (Number(row.revolve_balance) || 0);
+                    monthlyData[month].limit += limit;
+                    
+                    monthlyData[month].productBalance[prod] = (monthlyData[month].productBalance[prod] || 0) + bal;
                     
                     const dq = row.delinquency_bucket || 'Current';
-                    monthlyData[month].delinquency[dq] = (monthlyData[month].delinquency[dq] || 0) + (Number(row.balance) || 0);
+                    monthlyData[month].delinquency[dq] = (monthlyData[month].delinquency[dq] || 0) + bal;
 
-                    // Capture latest month data for KPIs and Pie Chart (within the filtered dataset)
                     if (month === latestMonth) {
                         if (row.account_id) latestAccounts.add(row.account_id);
-                        latestBalance += (Number(row.balance) || 0);
-                        latestSpend += (Number(row.spend) || 0);
-                        
-                        const prod = row.product || 'Unknown';
+                        latestBalance += bal;
+                        latestSpend += spnd;
+                        latestLimit += limit;
                         productsLatest[prod] = (productsLatest[prod] || 0) + 1;
                     }
                 });
 
                 // 3. Update KPIs
-                document.getElementById('kpiAccounts').textContent = latestAccounts.size.toLocaleString();
+                const numAccounts = latestAccounts.size;
+                document.getElementById('kpiAccounts').textContent = numAccounts.toLocaleString();
+                document.getElementById('kpiLimit').textContent = formatCurrency(latestLimit);
                 document.getElementById('kpiBalance').textContent = formatCurrency(latestBalance);
+                
+                const utilRate = latestLimit > 0 ? (latestBalance / latestLimit) : 0;
+                document.getElementById('kpiUtilization').textContent = formatPct(utilRate);
+                
                 document.getElementById('kpiSpend').textContent = formatCurrency(latestSpend);
+                
+                const avgSpend = numAccounts > 0 ? (latestSpend / numAccounts) : 0;
+                document.getElementById('kpiAvgSpend').textContent = formatCurrency(avgSpend);
 
                 // 4. Prepare Chart Data Arrays
                 const sortedMonths = Object.keys(monthlyData).sort();
-                
                 const balances = sortedMonths.map(m => monthlyData[m].balance);
                 const spends = sortedMonths.map(m => monthlyData[m].spend);
                 const revolves = sortedMonths.map(m => monthlyData[m].revolve);
+                const utilizations = sortedMonths.map(m => monthlyData[m].limit > 0 ? (monthlyData[m].balance / monthlyData[m].limit) * 100 : 0);
 
                 // 5. Render Charts
+                Chart.defaults.color = getChartColors().text;
+                
                 renderBalanceChart(sortedMonths, balances);
                 renderSpendChart(sortedMonths, spends);
                 renderRevolveChart(sortedMonths, revolves);
+                renderUtilizationChart(sortedMonths, utilizations);
+                renderProductBalanceChart(sortedMonths, monthlyData, Array.from(allProductsSet));
                 renderDelinquencyChart(sortedMonths, monthlyData);
                 renderProductChart(productsLatest);
+                
+                // 6. Populate Table
+                updateDataTable(filteredData);
 
             } catch (err) {
                 console.error("Dashboard update error:", err);
             }
         }
+        
+        function updateDataTable(filteredData) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+            
+            // Sort by month descending, take top 50
+            const recentData = filteredData
+                .sort((a, b) => b.reporting_month.localeCompare(a.reporting_month))
+                .slice(0, 50);
+                
+            recentData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.reporting_month || ''}</td>
+                    <td>${row.account_id || ''}</td>
+                    <td>${row.product || ''}</td>
+                    <td>$${(row.credit_limit || 0).toLocaleString()}</td>
+                    <td>$${(row.balance || 0).toLocaleString()}</td>
+                    <td>$${(row.spend || 0).toLocaleString()}</td>
+                    <td>${row.delinquency_bucket || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
         function destroyChart(id) {
-            if (charts[id]) {
-                charts[id].destroy();
-            }
+            if (charts[id]) charts[id].destroy();
+        }
+
+        function getCommonOptions(titleText) {
+            const colors = getChartColors();
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    title: { display: true, text: titleText, color: colors.text },
+                    legend: { labels: { color: colors.text } }
+                },
+                scales: { 
+                    x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+                    y: { beginAtZero: true, ticks: { color: colors.text }, grid: { color: colors.grid } }
+                }
+            };
         }
 
         function renderBalanceChart(labels, data) {
@@ -542,12 +735,7 @@
                         tension: 0.4
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Total Portfolio Balance Over Time' } },
-                    scales: { y: { beginAtZero: true } }
-                }
+                options: getCommonOptions('Total Portfolio Balance Over Time')
             });
         }
 
@@ -558,20 +746,9 @@
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: 'Spend',
-                            data: spendData,
-                            backgroundColor: '#10b981'
-                        }
-                    ]
+                    datasets: [{ label: 'Total Spend', data: spendData, backgroundColor: '#10b981' }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Total Spend' } },
-                    scales: { y: { beginAtZero: true } }
-                }
+                options: getCommonOptions('Total Spend Over Time')
             });
         }
 
@@ -582,20 +759,52 @@
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: 'Revolve Balance',
-                            data: revolveData,
-                            backgroundColor: '#f59e0b'
-                        }
-                    ]
+                    datasets: [{ label: 'Revolve Balance', data: revolveData, backgroundColor: '#f59e0b' }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Total Revolve Balance' } },
-                    scales: { y: { beginAtZero: true } }
-                }
+                options: getCommonOptions('Revolving Balance Over Time')
+            });
+        }
+
+        function renderUtilizationChart(labels, utilData) {
+            destroyChart('utilizationChart');
+            const ctx = document.getElementById('utilizationChart').getContext('2d');
+            charts['utilizationChart'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Utilization %',
+                        data: utilData,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: '#8b5cf6',
+                        tension: 0.1
+                    }]
+                },
+                options: getCommonOptions('Credit Utilization % Over Time')
+            });
+        }
+
+        function renderProductBalanceChart(labels, monthlyData, allProducts) {
+            destroyChart('productBalanceChart');
+            const productColors = ['#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
+            
+            const datasets = allProducts.map((prod, i) => {
+                return {
+                    label: prod,
+                    data: labels.map(m => monthlyData[m].productBalance[prod] || 0),
+                    backgroundColor: productColors[i % productColors.length]
+                };
+            });
+
+            const options = getCommonOptions('Balance by Product Over Time');
+            options.scales.x.stacked = true;
+            options.scales.y.stacked = true;
+
+            const ctx = document.getElementById('productBalanceChart').getContext('2d');
+            charts['productBalanceChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: options
             });
         }
 
@@ -612,19 +821,15 @@
                 };
             });
 
+            const options = getCommonOptions('Delinquency Balances (Excl. Current)');
+            options.scales.x.stacked = true;
+            options.scales.y.stacked = true;
+
             const ctx = document.getElementById('delinquencyChart').getContext('2d');
             charts['delinquencyChart'] = new Chart(ctx, {
                 type: 'bar',
                 data: { labels: labels, datasets: datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Delinquency Balances (Excl. Current)' } },
-                    scales: {
-                        x: { stacked: true },
-                        y: { stacked: true, beginAtZero: true }
-                    }
-                }
+                options: options
             });
         }
 
@@ -640,14 +845,10 @@
                     labels: labels,
                     datasets: [{
                         data: data,
-                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6']
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981']
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Product Mix (Latest Filtered Month)' } }
-                }
+                options: getCommonOptions('Account Product Mix (Latest Month)')
             });
         }
     </script>
