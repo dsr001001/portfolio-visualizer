@@ -204,12 +204,18 @@
         <header>
             <h1>Credit Portfolio Monitor</h1>
             <p>Select your synthetic dataset CSV file to view metrics.</p>
-            <div class="file-upload">
-                <label for="csvFileInput" class="custom-file-upload">
-                    Load CSV Data
-                </label>
-                <input type="file" id="csvFileInput" accept=".csv" />
-                <span id="fileName">No file chosen</span>
+            <div class="file-upload" style="flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 16px;">
+                <button id="loadDefaultBtn" class="custom-file-upload" style="border: none; font-family: inherit; font-size: 1rem;">
+                    Load Default Data
+                </button>
+                <span style="align-self: center; font-weight: bold; color: var(--text-secondary);">OR</span>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <label for="csvFileInput" class="custom-file-upload">
+                        Upload custom CSV
+                    </label>
+                    <input type="file" id="csvFileInput" accept=".csv" />
+                    <span id="fileName">No file chosen</span>
+                </div>
             </div>
         </header>
 
@@ -275,9 +281,15 @@
         let charts = {};
         let rawData = []; // Store the full dataset globally to allow dynamic filtering
 
-        // Attempt to auto-load data from Android local storage path
-        document.addEventListener("DOMContentLoaded", function() {
-            if (typeof Papa === 'undefined' || typeof Chart === 'undefined') return;
+        // Attempt to auto-load data from Android local storage path when requested
+        document.getElementById('loadDefaultBtn').addEventListener('click', function() {
+            if (typeof Papa === 'undefined' || typeof Chart === 'undefined') {
+                alert("Critical Error: The required libraries (Chart.js or PapaParse) did not load.");
+                return;
+            }
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
 
             const localPathsToTry = [
                 "file:///storage/emulated/0/Download/portfolio_trial",
@@ -290,7 +302,9 @@
             
             function tryLoadNextPath() {
                 if (pathIndex >= localPathsToTry.length) {
-                    console.log("Auto-load failed (likely due to CORS or file not found). Waiting for manual upload.");
+                    console.log("Load failed (likely due to CORS or file not found).");
+                    alert("Could not automatically load the file from the default location. Please use the 'Upload custom CSV' button.");
+                    document.getElementById('loading').classList.add('hidden');
                     return;
                 }
                 
@@ -304,15 +318,18 @@
                     complete: function(results) {
                         // Check if we actually got valid data or just a 404 HTML response
                         if (results.data && results.data.length > 0 && results.data[0].reporting_month) {
-                            console.log("Auto-load successful from:", path);
-                            document.getElementById('fileName').textContent = "Auto-loaded local file";
+                            console.log("Load successful from:", path);
+                            document.getElementById('fileName').textContent = "Loaded default data";
                             try {
                                 rawData = results.data;
                                 initializeFilters();
                                 updateDashboard();
+                                document.getElementById('loading').classList.add('hidden');
                                 document.getElementById('dashboard').classList.remove('hidden');
                             } catch (err) {
                                 console.error("Initialization error:", err);
+                                alert("Error initializing dashboard: " + err.message);
+                                document.getElementById('loading').classList.add('hidden');
                             }
                         } else {
                             pathIndex++;
