@@ -173,6 +173,14 @@
             position: relative;
             height: 300px;
             width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* Fix for Chart.js infinite expanding canvas on flex/grid */
+        .chart-container canvas {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         @media (min-width: 768px) {
@@ -248,7 +256,10 @@
                     <canvas id="balanceChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <canvas id="spendRevolveChart"></canvas>
+                    <canvas id="spendChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revolveChart"></canvas>
                 </div>
                 <div class="chart-container">
                     <canvas id="delinquencyChart"></canvas>
@@ -426,9 +437,10 @@
                 const spends = sortedMonths.map(m => monthlyData[m].spend);
                 const revolves = sortedMonths.map(m => monthlyData[m].revolve);
 
-                // 5. Render Charts (will render empty if no data matches filters)
+                // 5. Render Charts
                 renderBalanceChart(sortedMonths, balances);
-                renderSpendRevolveChart(sortedMonths, spends, revolves);
+                renderSpendChart(sortedMonths, spends);
+                renderRevolveChart(sortedMonths, revolves);
                 renderDelinquencyChart(sortedMonths, monthlyData);
                 renderProductChart(productsLatest);
 
@@ -468,10 +480,10 @@
             });
         }
 
-        function renderSpendRevolveChart(labels, spendData, revolveData) {
-            destroyChart('spendRevolveChart');
-            const ctx = document.getElementById('spendRevolveChart').getContext('2d');
-            charts['spendRevolveChart'] = new Chart(ctx, {
+        function renderSpendChart(labels, spendData) {
+            destroyChart('spendChart');
+            const ctx = document.getElementById('spendChart').getContext('2d');
+            charts['spendChart'] = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -480,7 +492,26 @@
                             label: 'Spend',
                             data: spendData,
                             backgroundColor: '#10b981'
-                        },
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: 'Total Spend' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function renderRevolveChart(labels, revolveData) {
+            destroyChart('revolveChart');
+            const ctx = document.getElementById('revolveChart').getContext('2d');
+            charts['revolveChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
                         {
                             label: 'Revolve Balance',
                             data: revolveData,
@@ -491,7 +522,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { title: { display: true, text: 'Spend vs Revolve Balance' } },
+                    plugins: { title: { display: true, text: 'Total Revolve Balance' } },
                     scales: { y: { beginAtZero: true } }
                 }
             });
