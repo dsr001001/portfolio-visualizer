@@ -275,6 +275,60 @@
         let charts = {};
         let rawData = []; // Store the full dataset globally to allow dynamic filtering
 
+        // Attempt to auto-load data from Android local storage path
+        document.addEventListener("DOMContentLoaded", function() {
+            if (typeof Papa === 'undefined' || typeof Chart === 'undefined') return;
+
+            const localPathsToTry = [
+                "file:///storage/emulated/0/Download/portfolio_trial",
+                "file:///storage/emulated/0/Download/portfolio_trial/synthetic_credit_card_portfolio.csv",
+                "/storage/emulated/0/Download/portfolio_trial",
+                "/storage/emulated/0/Download/portfolio_trial/synthetic_credit_card_portfolio.csv"
+            ];
+            
+            let pathIndex = 0;
+            
+            function tryLoadNextPath() {
+                if (pathIndex >= localPathsToTry.length) {
+                    console.log("Auto-load failed (likely due to CORS or file not found). Waiting for manual upload.");
+                    return;
+                }
+                
+                const path = localPathsToTry[pathIndex];
+                
+                Papa.parse(path, {
+                    download: true,
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        // Check if we actually got valid data or just a 404 HTML response
+                        if (results.data && results.data.length > 0 && results.data[0].reporting_month) {
+                            console.log("Auto-load successful from:", path);
+                            document.getElementById('fileName').textContent = "Auto-loaded local file";
+                            try {
+                                rawData = results.data;
+                                initializeFilters();
+                                updateDashboard();
+                                document.getElementById('dashboard').classList.remove('hidden');
+                            } catch (err) {
+                                console.error("Initialization error:", err);
+                            }
+                        } else {
+                            pathIndex++;
+                            tryLoadNextPath();
+                        }
+                    },
+                    error: function(error) {
+                        pathIndex++;
+                        tryLoadNextPath();
+                    }
+                });
+            }
+            
+            tryLoadNextPath();
+        });
+
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
