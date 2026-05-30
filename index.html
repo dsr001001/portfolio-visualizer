@@ -174,6 +174,29 @@
             width: 100%;
         }
 
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            background-color: var(--background);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
         .kpi-cards {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -335,11 +358,11 @@
                     <label for="endMonth">End Month</label>
                     <select id="endMonth"></select>
                 </div>
-                <div class="filter-group">
-                    <label for="productFilter">Product Line</label>
-                    <select id="productFilter">
-                        <option value="All">All Products</option>
-                    </select>
+                <div class="filter-group product-filter-group" style="flex: 2; min-width: 100%;">
+                    <label>Product Line</label>
+                    <div id="productFilterButtons" class="button-group">
+                        <!-- Buttons injected via JS -->
+                    </div>
                 </div>
             </div>
 
@@ -607,7 +630,7 @@
             const sortedMonths = Array.from(months).sort();
             const startSelect = document.getElementById('startMonth');
             const endSelect = document.getElementById('endMonth');
-            const prodSelect = document.getElementById('productFilter');
+            const prodContainer = document.getElementById('productFilterButtons');
 
             startSelect.innerHTML = '';
             endSelect.innerHTML = '';
@@ -621,21 +644,43 @@
                 endSelect.value = sortedMonths[sortedMonths.length - 1];
             }
 
-            prodSelect.innerHTML = '<option value="All">All Products</option>';
+            prodContainer.innerHTML = '';
+            
+            // Create "All" button
+            const allBtn = document.createElement('button');
+            allBtn.className = 'filter-btn active';
+            allBtn.textContent = 'All Products';
+            allBtn.dataset.product = 'All';
+            allBtn.onclick = function() {
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                updateDashboard();
+            };
+            prodContainer.appendChild(allBtn);
+
             Array.from(products).sort().forEach(p => {
-                prodSelect.add(new Option(p, p));
+                const btn = document.createElement('button');
+                btn.className = 'filter-btn';
+                btn.textContent = p;
+                btn.dataset.product = p;
+                btn.onclick = function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updateDashboard();
+                };
+                prodContainer.appendChild(btn);
             });
 
             startSelect.addEventListener('change', updateDashboard);
             endSelect.addEventListener('change', updateDashboard);
-            prodSelect.addEventListener('change', updateDashboard);
         }
 
         function updateDashboard() {
             try {
                 const startMonth = document.getElementById('startMonth').value;
                 const endMonth = document.getElementById('endMonth').value;
-                const selectedProduct = document.getElementById('productFilter').value;
+                const activeProductBtn = document.querySelector('.filter-btn.active');
+                const selectedProduct = activeProductBtn ? activeProductBtn.dataset.product : 'All';
 
                 // 1. Filter Data
                 const filteredData = rawData.filter(row => {
@@ -685,7 +730,8 @@
                 if (sortedMonths.length === 0) return; // Prevent errors if no data
 
                 const latestMonth = sortedMonths[sortedMonths.length - 1];
-                const prevMonth = sortedMonths.length > 1 ? sortedMonths[sortedMonths.length - 2] : null;
+                // Use the starting month of the selected observation period for trend calculation
+                const prevMonth = sortedMonths.length > 1 ? sortedMonths[0] : null;
 
                 // 3. Extract KPI Data
                 const currentAccounts = monthlyData[latestMonth].accounts.size;
