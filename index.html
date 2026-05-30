@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for local CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Credit Portfolio Monitor</h1>
+            <p>Select your synthetic dataset CSV file to view metrics.</p>
+            <div class="file-upload">
+                <label for="csvFileInput" class="custom-file-upload">
+                    Load CSV Data
+                </label>
+                <input type="file" id="csvFileInput" accept=".csv" />
+                <span id="fileName">No file chosen</span>
+            </div>
+        </header>
+
+        <div id="loading" class="hidden">Processing data... Please wait.</div>
+
+        <main id="dashboard" class="hidden">
+            <div class="kpi-cards">
+                <div class="card">
+                    <h3>Total Accounts</h3>
+                    <p id="kpiAccounts">0</p>
+                </div>
+                <div class="card">
+                    <h3>Total Balance (Latest)</h3>
+                    <p id="kpiBalance">$0</p>
+                </div>
+                <div class="card">
+                    <h3>Total Spend (Latest)</h3>
+                    <p id="kpiSpend">$0</p>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <canvas id="balanceChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="spendRevolveChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="delinquencyChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="productChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
